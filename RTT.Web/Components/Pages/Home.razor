@@ -1,0 +1,172 @@
+﻿@page "/"
+@page "/clients"
+@using RTT.Core.Models
+@using RTT.Core.Models.Dtos
+@using RTT.Web.Services.Client
+@rendermode InteractiveServer
+@implements IDisposable
+@inject ClientService ClientService
+@inject NavigationManager Navigation
+@inject IJSRuntime JavaScript
+
+<PageTitle>Clients</PageTitle>
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h1 class="h3 mb-0 me-auto">Clients</h1>
+        <button class="btn btn-outline-secondary" disabled="@(!RendererInfo.IsInteractive)" @onclick="Export" title="All clients and addresses, without contact numbers">
+                Export to CSV
+        </button>
+        <a class="btn btn-primary" href="clients/new">New client</a>
+</div>
+
+<div class="mb-3">
+        <label for="search" class="visually-hidden">Search clients</label>
+        <input id="search" class="form-control" type="search" placeholder="Search by first name, last name or ID number"
+               value="@searchText" @oninput="OnSearchInput" maxlength="100" autocomplete="off" />
+</div>
+
+@if (errorMessage is not null)
+{
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+@if (result is null)
+{
+        <p class="text-muted">Loading clients…</p>
+}
+else if (result.TotalCount == 0)
+{
+        <p class="text-muted">@(string.IsNullOrWhiteSpace(searchText) ? "No clients yet. Add the first one." : "No clients match your search.")</p>
+}
+else
+{
+        <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                        <thead>
+                                <tr>
+                                        <th>Name</th>
+                                        <th>Gender</th>
+                                        <th>Date of birth</th>
+                                        <th>ID / passport</th>
+                                        <th class="text-end">Addresses</th>
+                                        <th class="text-end">Contacts</th>
+                                        <th></th>
+                                </tr>
+                        </thead>
+                        <tbody>
+                                @foreach (var client in result.Items)
+                                {
+                                        <tr>
+                                                <td><a href="clients/@client.ClientId">@client.LastName, @client.FirstName</a> <span class="text-muted">@client.Title</span></td>
+                                                <td>@client.Gender</td>
+                                                <td>@client.DateOfBirth?.ToString("yyyy-MM-dd")</td>
+                                                <td>@client.IdNumber</td>
+                                                <td class="text-end">@client.AddressCount</td>
+                                                <td class="text-end">@client.ContactCount</td>
+                                                <td class="text-end text-nowrap">
+                                                        <a class="btn btn-sm btn-outline-primary" href="clients/@client.ClientId">Edit</a>
+                                                        <button class="btn btn-sm btn-outline-danger" disabled="@(!RendererInfo.IsInteractive)" @onclick="() => Delete(client)">Delete</button>
+                                                </td>
+                                        </tr>
+                                }
+                        </tbody>
+                </table>
+        </div>
+
+        <nav class="d-flex flex-wrap align-items-center gap-2" aria-label="Client pages">
+                <button class="btn btn-outline-secondary btn-sm" disabled="@(currentPage <= 1)" @onclick="() => GoToPage(currentPage - 1)">Previous</button>
+                <span>Page @currentPage of @result.TotalPages</span>
+                <button class="btn btn-outline-secondary btn-sm" disabled="@(currentPage >= result.TotalPages)" @onclick="() => GoToPage(currentPage + 1)">Next</button>
+                <span class="text-muted ms-auto">@result.TotalCount.ToString("N0") @(result.TotalCount == 1 ? "client" : "clients")</span>
+        </nav>
+}
+
+@code {
+        private const int PageSize = 25;
+        private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(300);
+
+        private PagedResult<ClientSummaryDto>? result;
+        private string searchText = string.Empty;
+        private int currentPage = 1;
+        private string? errorMessage;
+        private CancellationTokenSource? loadCancellation;
+
+        protected override Task OnInitializedAsync() => LoadAsync();
+
+        private async Task OnSearchInput(ChangeEventArgs changeEvent)
+        {
+            searchText = changeEvent.Value?.ToString() ?? string.Empty;
+            currentPage = 1;
+
+            await LoadAsync(SearchDelay);
+        }
+
+        private Task GoToPage(int page)
+        {
+            currentPage = page;
+
+            return LoadAsync();
+        }
+
+        private async Task LoadAsync(TimeSpan delay = default)
+        {
+            loadCancellation?.Cancel();
+            loadCancellation?.Dispose();
+            loadCancellation = new CancellationTokenSource();
+            var cancellationToken = loadCancellation.Token;
+
+            try
+            {
+                if (delay > TimeSpan.Zero)
+                    await Task.Delay(delay, cancellationToken);
+
+                var query = new ClientQuery { Search = searchText.Trim(), Page = currentPage, PageSize = PageSize };
+                var page = await ClientService.Search(query, cancellationToken);
+                
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
+                result = page;
+                errorMessage = null;
+
+                if (result.TotalPages > 0 && currentPage > result.TotalPages)
+                {
+                    currentPage = result.TotalPages;
+                    await LoadAsync();
+                }
+            }
+            catch (Exception)
+            {
+                errorMessage = "The client service could not be reached. Is ClientManager.Service running?";
+                result ??= new PagedResult<ClientSummaryDto>();
+            }
+        }
+
+        private async Task Delete(ClientSummaryDto client)
+        {
+            var confirmed = await JavaScript.InvokeAsync<bool>("confirm", $"Delete {client.FirstName} {client.LastName} and all their addresses and contact details?");
+            if (!confirmed)
+                return;
+
+            try
+            {
+                await ClientService.DeleteClient(client.ClientId, CancellationToken.None);
+                errorMessage = null;
+                await LoadAsync();
+
+            }
+            catch (Exception)
+            {
+                errorMessage = "The client service could not be reached. Nothing was deleted.";
+                return;
+            }
+        }
+
+        private void Export() => Navigation.NavigateTo("clients/export", forceLoad: true);
+
+        public void Dispose()
+        {
+            loadCancellation?.Cancel();
+            loadCancellation?.Dispose();
+        }
+}

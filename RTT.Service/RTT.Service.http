@@ -1,0 +1,6 @@
+@RTT.Service_HostAddress = http://localhost:5079
+
+GET {{RTT.Service_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

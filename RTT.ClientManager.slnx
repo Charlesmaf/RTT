@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="RTT.Core/RTT.Core.csproj" />
+  <Project Path="RTT.Repository/RTT.Repository.csproj" Id="7c89adbb-bfbe-41ea-be3e-3d2ecb3dc349" />
+  <Project Path="RTT.Service/RTT.Service.csproj" Id="09f992bb-6af9-42db-97d5-f9f7aa36bd33" />
+  <Project Path="RTT.Web/RTT.Web.csproj" Id="0cf5efbc-3b93-48b4-bb9e-2b2f5e42a36d" />
+</Solution>

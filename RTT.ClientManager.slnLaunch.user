@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "MultiProject",
+    "Projects": [
+      {
+        "Path": "RTT.Service\\RTT.Service.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "RTT.Web\\RTT.Web.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

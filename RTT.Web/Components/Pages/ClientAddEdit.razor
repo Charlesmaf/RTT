@@ -1,0 +1,214 @@
+﻿@page "/clients/new"
+@page "/clients/{ClientId:int}"
+@using RTT.Core.Models
+@using RTT.Core.Models.Dtos
+@using RTT.Web.Services.Client
+@rendermode InteractiveServer
+@inject ClientService ClientService
+@inject NavigationManager Navigation
+
+<PageTitle>@(IsNew ? "New client" : "Edit client")</PageTitle>
+
+<a href="clients" class="btn btn-link px-0 mb-3">&larr; Clients</a>
+
+<h1 class="h3 mb-3">@(IsNew ? "New client" : $"{client?.FirstName} {client?.LastName}")</h1>
+
+@if (loadError is not null)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (client is null || lookups is null)
+{
+    <p class="text-muted">Loading…</p>
+}
+else
+{
+    <EditForm Model="client" OnValidSubmit="Save" FormName="client-edit">
+        <DataAnnotationsValidator />
+
+        @if (saveError is not null)
+        {
+            <div class="alert alert-danger">
+                @saveError
+                @if (fieldErrors.Count > 0)
+                {
+                    <ul class="mb-0 mt-2">
+                        @foreach (var fieldError in fieldErrors)
+                        {
+                            <li>@fieldError</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+        <ValidationSummary class="text-danger" />
+
+        <section class="card mb-4">
+            <div class="card-header fw-semibold">Basic details</div>
+            <div class="card-body row g-3">
+                <label class="col-sm-2">Title
+                    <InputText class="form-control" @bind-Value="client.Title" placeholder="Mr, Ms, Dr" />
+                </label>
+                <label class="col-sm-5">First name *
+                    <InputText class="form-control" @bind-Value="client.FirstName" />
+                </label>
+                <label class="col-sm-5">Last name *
+                    <InputText class="form-control" @bind-Value="client.LastName" />
+                </label>
+                <label class="col-sm-4">Gender *
+                    <InputSelect class="form-select" @bind-Value="client.GenderId">
+                        <option value="0">Choose…</option>
+                        @foreach (var gender in lookups.Genders)
+                        {
+                            <option value="@gender.Id">@gender.Name</option>
+                        }
+                    </InputSelect>
+                </label>
+                <label class="col-sm-4">Date of birth
+                    <InputDate class="form-control" @bind-Value="client.DateOfBirth" />
+                </label>
+                <label class="col-sm-4">ID / passport number
+                    <InputText class="form-control" @bind-Value="client.IdNumber" />
+                </label>
+            </div>
+        </section>
+
+        <section class="card mb-4">
+            <div class="card-header d-flex align-items-center">
+                <span class="fw-semibold me-auto">Addresses</span>
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => client.Addresses.Add(new AddressDto())" disabled="@(client.Addresses.Count >= ClientLimits.MaxAddresses)">Add address</button>
+            </div>
+            <div class="card-body">
+                @if (client.Addresses.Count == 0)
+                {
+                    <p class="text-muted mb-0">No addresses yet.</p>
+                }
+                @foreach (var address in client.Addresses)
+                {
+                    <div class="border rounded p-3 mb-3 row g-2" @key="address">
+                        <label class="col-sm-4">Type *
+                            <InputSelect class="form-select" @bind-Value="address.AddressTypeId">
+                                <option value="0">Choose…</option>
+                                @foreach (var addressType in lookups.AddressTypes)
+                                {
+                                    <option value="@addressType.Id">@addressType.Name</option>
+                                }
+                            </InputSelect>
+                        </label>
+                        <div class="col-sm-8 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => client.Addresses.Remove(address)">Remove</button>
+                        </div>
+                        <label class="col-sm-6">Address line 1 *
+                            <InputText class="form-control" @bind-Value="address.AddressLine1" />
+                        </label>
+                        <label class="col-sm-6">Address line 2
+                            <InputText class="form-control" @bind-Value="address.AddressLine2" />
+                        </label>
+                        <label class="col-sm-4">Suburb
+                            <InputText class="form-control" @bind-Value="address.Suburb" />
+                        </label>
+                        <label class="col-sm-4">City *
+                            <InputText class="form-control" @bind-Value="address.City" />
+                        </label>
+                        <label class="col-sm-4">Province
+                            <InputText class="form-control" @bind-Value="address.Province" />
+                        </label>
+                        <label class="col-sm-4">Postal code *
+                            <InputText class="form-control" @bind-Value="address.PostalCode" />
+                        </label>
+                        <label class="col-sm-8">Country *
+                            <InputText class="form-control" @bind-Value="address.Country" />
+                        </label>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <section class="card mb-4">
+            <div class="card-header d-flex align-items-center">
+                <span class="fw-semibold me-auto">Contact details</span>
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => client.Contacts.Add(new ContactDto())"
+                        disabled="@(client.Contacts.Count >= ClientLimits.MaxContacts)">Add contact</button>
+            </div>
+            <div class="card-body">
+                @if (client.Contacts.Count == 0)
+                {
+                    <p class="text-muted mb-0">No contact details yet.</p>
+                }
+                @foreach (var contact in client.Contacts)
+                {
+                    <div class="row g-2 mb-2" @key="contact">
+                        <div class="col-sm-4">
+                            <InputSelect class="form-select" @bind-Value="contact.ContactTypeId" aria-label="Contact type">
+                                <option value="0">Choose type…</option>
+                                @foreach (var contactType in lookups.ContactTypes)
+                                {
+                                    <option value="@contactType.Id">@contactType.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="col-sm-6">
+                            <InputText class="form-control" @bind-Value="contact.ContactValue" aria-label="Number or email address" placeholder="Number or email address" />
+                        </div>
+                        <div class="col-sm-2 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => client.Contacts.Remove(contact)">Remove</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <div class="d-flex gap-2 mb-5">
+            <button type="submit" class="btn btn-primary" disabled="@isSaving">@(isSaving ? "Saving…" : "Save client")</button>
+            <a href="clients" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </EditForm>
+}
+
+@code {
+
+    [Parameter]
+    public int? ClientId { get; set; }
+    private bool IsNew => ClientId is null;
+    private ClientDto? client;
+    private LookupsDto? lookups;
+    private string? loadError;
+    private string? saveError;
+    private List<string> fieldErrors = [];
+    private bool isSaving;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            lookups ??= await ClientService.GetLookupsAsync();
+            client = IsNew ? new ClientDto() : await ClientService.GetClient(ClientId!.Value);
+        }
+        catch (Exception exception)
+        {
+            loadError = exception.Message;
+        }
+    }
+
+    private async Task Save()
+    {
+        isSaving = true;
+        saveError = null;
+        fieldErrors = [];
+
+        try
+        {
+            await ClientService.SaveClient(client!);
+            Navigation.NavigateTo("clients");
+        }
+        catch (Exception exception)
+        {
+            fieldErrors = exception.Data.Values.Cast<object>().Select(message => message.ToString()!).ToList();
+            saveError = fieldErrors.Count > 0 ? "Please fix the following:" : exception.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}
