@@ -1,0 +1,13 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/RTT.Core/bin/Debug/net10.0
+/RTT.Core/obj
+/RTT.Repository/bin/Debug/net10.0
+/RTT.Repository/obj
+/RTT.Service/bin/Debug/net10.0
+/RTT.Service/obj
+/RTT.Web/bin/Debug/net10.0
+/RTT.Web/obj
